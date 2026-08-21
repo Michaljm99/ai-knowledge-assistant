@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+.env
+chroma_db/
+logs/questions.csv
+.idea/
+.vscode/
+*.log
+*.docx
+*.pdf
