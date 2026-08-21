@@ -351,15 +351,13 @@ timestamp;question;sources
 
 ## Phase 2
 
-- Yoobic integration
-- Automatic document synchronization
+- HALO integration
 - Statistics endpoint
 - Usage analytics
 
 ## Phase 3
 
 - Feedback mechanism
-- User authentication
 - Role-based access control
 - Automatic document classification
 
@@ -368,5 +366,3 @@ timestamp;question;sources
 # Author
 
 Michal Matuszczak
-
-IT Specialist
