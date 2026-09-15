@@ -51,17 +51,29 @@ def get_collection():
 SYSTEM_PROMPT = """
 Jesteś asystentem IT.
 
-Odpowiadaj wyłącznie na podstawie przekazanego kontekstu.
+Odpowiadaj wyłącznie na podstawie dostarczonego kontekstu.
 
-Jeżeli kontekst zawiera odpowiedź:
-udziel odpowiedzi.
+Zasady:
 
-Jeżeli nie:
-odpowiedz dokładnie:
-Nie znalazłem informacji w bazie wiedzy.
+- Jeżeli znajdziesz jedną procedurę, przedstaw rozwiązanie.
+- Jeżeli znajdziesz kilka potencjalnych przyczyn problemu, przedstaw wszystkie.
+- Opisuj scenariusze oddzielnie.
+- Podawaj kroki diagnostyczne.
+- Jeśli potrzebujesz dodatkowych informacji od użytkownika,
+  napisz jakie informacje są potrzebne.
+- Odpowiadaj po polsku.
 
-Odpowiadaj po polsku.
+Odpowiedz:
+"Nie znalazłem informacji w bazie wiedzy."
+tylko wtedy, gdy kontekst nie zawiera żadnych informacji związanych z pytaniem.
+
+Jeśli procedury różnią się w zależności od typu stanowiska POS,
+opisz osobno wariant dla Posiflex RT i Micros WS6.
+
+Nie pytaj użytkownika o typ urządzenia,
+jeżeli instrukcje dla obu wariantów są dostępne w kontekście.
 """
+
 
 
 def log_question(question, sources):
@@ -112,6 +124,12 @@ def ask_knowledge_base(question: str):
         ]
     )
 
+    for i, meta in enumerate(results["metadatas"][0]):
+        print(
+            results["distances"][0][i],
+            meta["source"]
+        )
+
     if (
         not results["documents"]
         or not results["documents"][0]
@@ -135,21 +153,79 @@ def ask_knowledge_base(question: str):
             "sources": []
         }
 
-    best_source = results["metadatas"][0][0]["source"]
+    best_distance = results["distances"][0][0]
+
+    candidate_sources = []
+
+    for i, metadata in enumerate(results["metadatas"][0]):
+
+        distance = results["distances"][0][i]
+
+        if distance <= best_distance + 0.03:
+
+            source = metadata["source"]
+
+            if source not in candidate_sources:
+                candidate_sources.append(source)
 
     chunks = []
 
     for i, metadata in enumerate(results["metadatas"][0]):
 
-        if metadata["source"] == best_source:
+        source = metadata["source"]
+
+        if source in candidate_sources:
+
             chunks.append(
                 results["documents"][0][i]
             )
 
     context = "\n\n".join(chunks)
 
-    sources = [best_source]
+    sources = candidate_sources
 
+    if len(sources) > 1:
+
+        user_prompt = f"""
+    Kontekst:
+
+    {context}
+
+    Pytanie:
+
+    {question}
+
+    Znaleziono kilka potencjalnie pasujących procedur.
+
+    Jeżeli problem może mieć kilka przyczyn:
+
+    - wypisz wszystkie możliwe scenariusze,
+    - opisz je osobno,
+    - podaj kroki diagnostyczne,
+    - jeśli potrzebujesz dodatkowych informacji od użytkownika,
+    napisz jakie.
+
+    Źródła:
+
+    {', '.join(sources)}
+    """
+
+    else:
+
+        user_prompt = f"""
+    Kontekst:
+
+    {context}
+
+    Pytanie:
+
+    {question}
+
+    Źródła:
+
+    {', '.join(sources)}
+    """
+    
     response = llm_client.chat.completions.create(
         model=MODEL,
         messages=[
@@ -159,22 +235,10 @@ def ask_knowledge_base(question: str):
             },
             {
                 "role": "user",
-                "content": f"""
-Kontekst:
-
-{context}
-
-Pytanie:
-
-{question}
-
-Źródło:
-
-{best_source}
-"""
+                "content": user_prompt
             }
-        ]
-    )
+    ]
+)
 
     answer = response.choices[0].message.content
 

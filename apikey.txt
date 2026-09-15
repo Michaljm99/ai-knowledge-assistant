@@ -1,0 +1,2 @@
+APIkey:
+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

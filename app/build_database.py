@@ -42,6 +42,18 @@ splitter = RecursiveCharacterTextSplitter(
     chunk_overlap=300
 )
 
+def get_pos_type(file_name):
+
+    file_name = file_name.lower()
+
+    if "posiflex_rt" in file_name:
+        return "Posiflex RT"
+
+    if "micros_ws6" in file_name:
+        return "Micros WS6"
+
+    return "None"
+
 def extract_date_from_filename(filename: str):
 
     match = re.search(
@@ -81,6 +93,8 @@ for file in DOCUMENTS_PATH.glob("**/*"):
         else:
             continue
 
+        pos_type = get_pos_type(file.name)
+
         chunks = splitter.split_text(text)
 
         for chunk in chunks:
@@ -96,8 +110,10 @@ for file in DOCUMENTS_PATH.glob("**/*"):
                 metadatas=[
                     {
                         "source": file.name,
+                        "pos_type": pos_type
                     }
                 ]
+                
             )
 
             chunk_id += 1
